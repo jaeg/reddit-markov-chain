@@ -14,8 +14,10 @@ import (
 var processedPosts map[string]string
 
 type Settings struct {
-	Username string
-	Password string
+	Username   string
+	Password   string
+	Aggression int
+	Subreddits []string
 }
 
 func main() {
@@ -26,7 +28,8 @@ func main() {
 
 	i := 0
 	for {
-		fmt.Println(i, m.GenerateSentence())
+		fmt.Println("Posts Handled: ", len(processedPosts))
+		fmt.Println(i, ": ", m.GenerateSentence())
 		i++
 		time.Sleep(time.Second)
 	}
@@ -41,24 +44,40 @@ func huntReddit(m *mctg.MCTG) {
 		"gedditAgent v1",
 	)
 
+	t := time.Now()
+	ts := t.Format("2006-01-02 15-04-05")
+	fmt.Println(ts)
+	f, err := os.OpenFile("corpus-"+ts+".txt", os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	defer f.Close()
+
 	subOpts := geddit.ListingOptions{
-		Limit: 100,
+		Limit: 1000,
 	}
 	for {
-		ds := ""
-		subreddit := "all"
-		submissions, _ := session.SubredditComments(subreddit, subOpts)
+		for _, subreddit := range settings.Subreddits {
+			ds := ""
+			submissions, _ := session.SubredditComments(subreddit, subOpts)
 
-		for _, s := range submissions {
-			if processedPosts[s.Body] == "" {
-				ds += s.Body + " "
-				processedPosts[s.Body] = subreddit
-				fmt.Println("Added", s.Body)
+			for _, s := range submissions {
+				if processedPosts[s.Body] == "" {
+					ds += s.Body + " "
+					processedPosts[s.Body] = subreddit
+				}
 			}
-		}
 
-		m.ParseCorpusFromString(ds, false)
-		time.Sleep(time.Second * 5)
+			if len(ds) > 0 {
+				m.ParseCorpusFromString(ds, false)
+				if _, err = f.WriteString(ds); err != nil {
+					panic(err)
+				}
+			}
+
+			time.Sleep(time.Second * time.Duration(settings.Aggression))
+		}
 	}
 }
 

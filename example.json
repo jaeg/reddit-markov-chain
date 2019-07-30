@@ -1,4 +1,6 @@
 {
   "Username":"",
-  "Password":""
+  "Password":"",
+  "Aggression":5,
+  "Subreddits":["all"]
 }
